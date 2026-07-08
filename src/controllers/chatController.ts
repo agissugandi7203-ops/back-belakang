@@ -1149,7 +1149,7 @@ Prosedur: ${validated.procedures.join(' -> ')}`;
     }
 
     // 3. Simpan data layanan beserta embeddingnya ke Supabase
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('public_services')
       .insert({
         name: validated.name,
@@ -1259,7 +1259,7 @@ export const deleteServiceController = async (c: Context) => {
     const id = c.req.param('id');
     logger.info('🗑️ Admin: Delete public service request for ID:', id);
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('public_services')
       .delete()
       .eq('id', id);
@@ -1649,8 +1649,7 @@ export const createRAGDocumentController = async (c: Context) => {
     const validated = ragDocumentSchema.parse(body);
 
     logger.info('📂 Admin: Saving RAG document metadata:', validated.filename);
-    const supabaseClient = c.get('supabase') || supabase;
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabaseAdmin
       .from('rag_documents')
       .insert({
         filename: validated.filename,
@@ -1686,8 +1685,7 @@ export const deleteRAGDocumentController = async (c: Context) => {
     const id = c.req.param('id');
     logger.info('📂 Admin: Delete RAG document request for ID:', id);
 
-    const supabaseClient = c.get('supabase') || supabase;
-    const { error } = await supabaseClient
+    const { error } = await supabaseAdmin
       .from('rag_documents')
       .delete()
       .eq('id', id);
