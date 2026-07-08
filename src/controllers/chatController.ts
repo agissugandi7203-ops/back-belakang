@@ -542,7 +542,7 @@ export const validateClaimController = async (c: Context) => {
     // Simpan hasil verifikasi klaim ke Supabase
     try {
       const cleanClaim = validated.claim.trim();
-      const { data: existingClaims } = await supabase
+      const { data: existingClaims } = await supabaseAdmin
         .from('claim_verifications')
         .select('id, search_count')
         .ilike('claim_text', cleanClaim)
@@ -550,7 +550,7 @@ export const validateClaimController = async (c: Context) => {
 
       if (existingClaims && existingClaims.length > 0) {
         const existing = existingClaims[0];
-        await supabase
+        await supabaseAdmin
           .from('claim_verifications')
           .update({
             search_count: existing.search_count + 1,
@@ -559,7 +559,7 @@ export const validateClaimController = async (c: Context) => {
           .eq('id', existing.id);
         logger.info('📈 Incremented search count for claim:', existing.id);
       } else {
-        await supabase
+        await supabaseAdmin
           .from('claim_verifications')
           .insert({
             claim_text: cleanClaim,
@@ -622,7 +622,7 @@ export const summarizeController = async (c: Context) => {
 
     // Cek cache ringkasan dokumen di database
     try {
-      const { data: existingSummary } = await supabase
+      const { data: existingSummary } = await supabaseAdmin
         .from('document_summaries')
         .select('summary')
         .eq('original_hash', originalHash)
@@ -649,7 +649,7 @@ export const summarizeController = async (c: Context) => {
         .filter(line => /^\d+\.\s+/.test(line))
         .map(line => line.replace(/^\d+\.\s+/, ''));
 
-      await supabase
+      await supabaseAdmin
         .from('document_summaries')
         .insert({
           original_hash: originalHash,
