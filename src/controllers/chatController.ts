@@ -1140,7 +1140,13 @@ Persyaratan: ${validated.requirements.join(', ')}
 Prosedur: ${validated.procedures.join(' -> ')}`;
 
     // 2. Generate embedding secara aman di server menggunakan OpenRouter
-    const vector = await getEmbedding(embeddingText);
+    //    Jika gagal (API key belum diset, rate limit, dsb.), layanan tetap disimpan tanpa vektor
+    let vector: number[] | null = null;
+    try {
+      vector = await getEmbedding(embeddingText);
+    } catch (embeddingError: any) {
+      logger.warn('⚠️ Embedding generation failed — service akan disimpan tanpa vektor RAG:', embeddingError.message);
+    }
 
     // 3. Simpan data layanan beserta embeddingnya ke Supabase
     const { data, error } = await supabase
@@ -1165,11 +1171,15 @@ Prosedur: ${validated.procedures.join(' -> ')}`;
       throw error;
     }
 
-    logger.info('✅ Public service created successfully with embedding vector. ID:', data.id);
+    const hasVector = vector !== null;
+    logger.info(`✅ Public service created successfully. ID: ${data.id} | Vector: ${hasVector ? 'YES' : 'NO (fallback mode)'}`);
 
     return c.json({
       id: data.id,
-      message: 'Layanan publik berhasil ditambahkan beserta data representasi vektor (RAG).',
+      message: hasVector
+        ? 'Layanan publik berhasil ditambahkan beserta data representasi vektor (RAG).'
+        : 'Layanan publik berhasil ditambahkan. Catatan: embedding vektor tidak tersedia saat ini (cek OPENROUTER_API_KEY).',
+      hasVector,
     }, 201);
 
   } catch (error: any) {
