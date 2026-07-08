@@ -83,9 +83,14 @@ export const registerController = async (c: Context) => {
     if (profileError) {
       logger.error('❌ Profiles table insertion error:', profileError);
       
-      // Cleanup: Hapus user auth jika penulisan ke profiles gagal untuk menjaga integritas data
-      // Catatan: Karena di Supabase admin API biasanya dibutuhkan untuk menghapus auth user secara langsung,
-      // kita laporkan error ini dan mintakan tindakan pemulihan.
+      // Cleanup: Delete auth user if profile insertion fails to keep database integrity
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        logger.info(`🧹 Cleaned up orphan auth user ${userId} due to profile creation failure`);
+      } catch (cleanErr: any) {
+        logger.error('⚠️ Failed to delete orphan auth user:', cleanErr.message || cleanErr);
+      }
+
       return c.json({ 
         error: 'Profile creation failed', 
         message: 'Akun autentikasi dibuat, namun pembuatan profil gagal. ' + profileError.message 
@@ -334,9 +339,10 @@ export const createStaffSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama lengkap wajib diisi sesuai KTP'),
   nama_panggilan: z.string().min(1, 'Nama panggilan wajib diisi'),
   tanggal_lahir: z.string().optional(),
-  nomor_telepon: z.string().regex(/^\+62\d{10,13}$/, 'Format nomor telepon harus diawali dengan +62 dan diikuti 10-13 digit angka').optional(),
-  no_hp: z.string().regex(/^\+62\d{10,13}$/, 'Format nomor telepon harus diawali dengan +62 dan diikuti 10-13 digit angka').optional(),
-  role: z.enum(['admin', 'petugas'], { message: 'Peran harus berupa admin atau petugas' }),
+  nomor_telepon: z.string().optional(),
+  no_telepon: z.string().optional(),
+  no_hp: z.string().optional(),
+  role: z.enum(['admin', 'petugas', 'superadmin'], { message: 'Peran harus berupa admin, petugas atau superadmin' }),
 });
 
 /**
@@ -351,22 +357,34 @@ export const createStaffUserController = async (c: Context) => {
 
     logger.info(`👤 Staff creation request by Admin. New user: ${validated.email} with role [${validated.role}]`);
 
-    const supabaseClient = c.get('supabase') || supabase;
+    // 1. Process phone number to satisfy NOT NULL constraints
+    let rawPhone = validated.nomor_telepon || validated.no_telepon || validated.no_hp || '';
+    let resolvedPhone = '+628000000000'; // Default fallback
 
-    // 2. Daftar ke Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    if (rawPhone.trim()) {
+      let cleaned = rawPhone.replace(/\D/g, ''); // Remove non-digits
+      if (cleaned.startsWith('0')) {
+        resolvedPhone = '+62' + cleaned.slice(1);
+      } else if (cleaned.startsWith('62')) {
+        resolvedPhone = '+' + cleaned;
+      } else {
+        resolvedPhone = '+62' + cleaned;
+      }
+    }
+
+    // 2. Daftar ke Supabase Auth menggunakan admin client (bypass confirmation)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: validated.email,
       password: validated.password,
-      options: {
-        data: {
-          role: validated.role,
-          nama_lengkap: validated.nama_lengkap,
-        }
+      email_confirm: true, // Auto-confirm email so they can log in immediately!
+      user_metadata: {
+        role: validated.role,
+        nama_lengkap: validated.nama_lengkap,
       }
     });
 
     if (authError || !authData.user) {
-      logger.error('❌ Supabase Auth registration error for staff:', authError);
+      logger.error('❌ Supabase Auth admin registration error for staff:', authError);
       return c.json({ 
         error: 'Staff creation failed', 
         message: authError?.message || 'Gagal mendaftarkan staf di sistem autentikasi' 
@@ -374,7 +392,6 @@ export const createStaffUserController = async (c: Context) => {
     }
 
     const userId = authData.user.id;
-    const resolvedPhone = validated.nomor_telepon || validated.no_hp || null;
 
     // 3. Masukkan profil tambahan ke tabel profiles (menggunakan system-level client 'supabaseAdmin' untuk bypass RLS)
     const { error: profileError } = await supabaseAdmin
@@ -391,6 +408,8 @@ export const createStaffUserController = async (c: Context) => {
 
     if (profileError) {
       logger.error('❌ Profiles table insertion error for staff:', profileError);
+      // Clean up the created auth user if profile creation fails
+      await supabaseAdmin.auth.admin.deleteUser(userId);
       return c.json({ 
         error: 'Profile creation failed', 
         message: 'Akun staf dibuat, namun pengisian profil database gagal: ' + profileError.message 
