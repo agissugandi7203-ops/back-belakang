@@ -9,8 +9,8 @@ const TOXIC_KEYWORDS = [
 ];
 
 const PORNO_KEYWORDS = [
-  'bokep', 'porno', 'seksual', 'persetubuhan', 'mesum', 'hentai', 'telanjang', 
-  'masturbasi', 'onani', 'sodomi', 'pemerkosaan', 'vulgar'
+  'bokep', 'porno', 'persetubuhan', 'mesum', 'hentai', 'telanjang', 
+  'masturbasi', 'onani', 'sodomi', 'vulgar'
 ];
 
 const POLITICAL_KEYWORDS = [
