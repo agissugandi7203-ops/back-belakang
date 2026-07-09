@@ -94,7 +94,7 @@ async function startWhatsAppBot() {
         let replyMessage = '';
 
         if (matched) {
-          replyMessage = `🔍 Menurut database kami, klaim '${matched.title}' adalah HOAKS. Sumber: ${matched.source || 'Kemenkes RI'}. Untuk informasi lebih lanjut, silakan kunjungi website kami: https://komunitas.id`;
+          replyMessage = `🔍 Menurut database kami, klaim '${matched.title}' adalah HOAKS. Sumber: ${matched.source || 'Kemenkes RI'}. Untuk informasi lebih lanjut, silakan kunjungi website kami: https://komunitasai.web.id`;
         } else {
           const queryCleaned = cleanQuery(messageBody);
           replyMessage = `⚠️ Informasi '${queryCleaned}' TIDAK DITEMUKAN di database kami. Silakan kunjungi website kami atau chat dengan AI kami untuk verifikasi lebih lanjut.`;

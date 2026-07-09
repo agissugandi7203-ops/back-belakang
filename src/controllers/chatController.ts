@@ -581,7 +581,7 @@ export const validateClaimController = async (c: Context) => {
     // Simpan hasil verifikasi klaim ke Supabase
     try {
       const cleanClaim = validated.claim.trim();
-      const { data: existingClaims } = await supabase
+      const { data: existingClaims } = await supabaseAdmin
         .from('claim_verifications')
         .select('id, search_count')
         .ilike('claim_text', cleanClaim)
@@ -589,7 +589,7 @@ export const validateClaimController = async (c: Context) => {
 
       if (existingClaims && existingClaims.length > 0) {
         const existing = existingClaims[0];
-        await supabase
+        await supabaseAdmin
           .from('claim_verifications')
           .update({
             search_count: existing.search_count + 1,
@@ -598,7 +598,7 @@ export const validateClaimController = async (c: Context) => {
           .eq('id', existing.id);
         logger.info('📈 Incremented search count for claim:', existing.id);
       } else {
-        await supabase
+        await supabaseAdmin
           .from('claim_verifications')
           .insert({
             claim_text: cleanClaim,
@@ -661,7 +661,7 @@ export const summarizeController = async (c: Context) => {
 
     // Cek cache ringkasan dokumen di database
     try {
-      const { data: existingSummary } = await supabase
+      const { data: existingSummary } = await supabaseAdmin
         .from('document_summaries')
         .select('summary')
         .eq('original_hash', originalHash)
@@ -688,7 +688,7 @@ export const summarizeController = async (c: Context) => {
         .filter(line => /^\d+\.\s+/.test(line))
         .map(line => line.replace(/^\d+\.\s+/, ''));
 
-      await supabase
+      await supabaseAdmin
         .from('document_summaries')
         .insert({
           original_hash: originalHash,
@@ -1179,10 +1179,16 @@ Persyaratan: ${validated.requirements.join(', ')}
 Prosedur: ${validated.procedures.join(' -> ')}`;
 
     // 2. Generate embedding secara aman di server menggunakan OpenRouter
-    const vector = await getEmbedding(embeddingText);
+    //    Jika gagal (API key belum diset, rate limit, dsb.), layanan tetap disimpan tanpa vektor
+    let vector: number[] | null = null;
+    try {
+      vector = await getEmbedding(embeddingText);
+    } catch (embeddingError: any) {
+      logger.warn('⚠️ Embedding generation failed — service akan disimpan tanpa vektor RAG:', embeddingError.message);
+    }
 
     // 3. Simpan data layanan beserta embeddingnya ke Supabase
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('public_services')
       .insert({
         name: validated.name,
@@ -1204,11 +1210,15 @@ Prosedur: ${validated.procedures.join(' -> ')}`;
       throw error;
     }
 
-    logger.info('✅ Public service created successfully with embedding vector. ID:', data.id);
+    const hasVector = vector !== null;
+    logger.info(`✅ Public service created successfully. ID: ${data.id} | Vector: ${hasVector ? 'YES' : 'NO (fallback mode)'}`);
 
     return c.json({
       id: data.id,
-      message: 'Layanan publik berhasil ditambahkan beserta data representasi vektor (RAG).',
+      message: hasVector
+        ? 'Layanan publik berhasil ditambahkan beserta data representasi vektor (RAG).'
+        : 'Layanan publik berhasil ditambahkan. Catatan: embedding vektor tidak tersedia saat ini (cek OPENROUTER_API_KEY).',
+      hasVector,
     }, 201);
 
   } catch (error: any) {
@@ -1288,7 +1298,7 @@ export const deleteServiceController = async (c: Context) => {
     const id = c.req.param('id');
     logger.info('🗑️ Admin: Delete public service request for ID:', id);
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('public_services')
       .delete()
       .eq('id', id);
@@ -1678,8 +1688,7 @@ export const createRAGDocumentController = async (c: Context) => {
     const validated = ragDocumentSchema.parse(body);
 
     logger.info('📂 Admin: Saving RAG document metadata:', validated.filename);
-    const supabaseClient = c.get('supabase') || supabase;
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabaseAdmin
       .from('rag_documents')
       .insert({
         filename: validated.filename,
@@ -1715,8 +1724,7 @@ export const deleteRAGDocumentController = async (c: Context) => {
     const id = c.req.param('id');
     logger.info('📂 Admin: Delete RAG document request for ID:', id);
 
-    const supabaseClient = c.get('supabase') || supabase;
-    const { error } = await supabaseClient
+    const { error } = await supabaseAdmin
       .from('rag_documents')
       .delete()
       .eq('id', id);

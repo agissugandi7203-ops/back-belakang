@@ -4,7 +4,7 @@
  */
 
 import { Context } from 'hono';
-import { supabase } from '../services/supabaseService';
+import { supabase, supabaseAdmin } from '../services/supabaseService';
 import { logger } from '../utils/logger';
 import { z } from 'zod';
 import { validateRequest } from 'twilio';
@@ -152,7 +152,7 @@ export const whatsappWebhookController = async (c: Context) => {
     let replyMessage = '';
 
     if (matched) {
-      replyMessage = `🔍 Menurut database kami, klaim '${matched.title}' adalah HOAKS. Sumber: ${matched.source || 'Kemenkes RI'}. Untuk informasi lebih lanjut, silakan kunjungi website kami: https://komunitas.id`;
+      replyMessage = `🔍 Menurut database kami, klaim '${matched.title}' adalah HOAKS. Sumber: ${matched.source || 'Kemenkes RI'}. Untuk informasi lebih lanjut, silakan kunjungi website kami: https://komunitasai.web.id`;
     } else {
       const queryCleaned = cleanQuery(messageBody);
       replyMessage = `⚠️ Informasi '${queryCleaned}' TIDAK DITEMUKAN di database kami. Silakan kunjungi website kami atau chat dengan AI kami untuk verifikasi lebih lanjut.`;
@@ -269,7 +269,7 @@ export const createHoaxController = async (c: Context) => {
 
     logger.info('🆕 Admin: Create new hoax keyword entry:', validated.keyword);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('hoax_database')
       .insert({
         keyword: validated.keyword,
@@ -331,7 +331,7 @@ export const updateHoaxController = async (c: Context) => {
 
     logger.info('📝 Admin: Update hoax request for ID:', id);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('hoax_database')
       .update({
         keyword: validated.keyword,
@@ -390,7 +390,7 @@ export const deleteHoaxController = async (c: Context) => {
     const id = c.req.param('id');
     logger.info('🗑️ Admin: Delete hoax request for ID:', id);
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('hoax_database')
       .delete()
       .eq('id', id);
