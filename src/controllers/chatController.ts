@@ -60,6 +60,43 @@ function buildRagContext(services: any[]): string {
     ).join('\n');
 }
 
+// --- Quota Tracking Helper ---
+async function incrementQuota(userId: string | null, sessionId: string) {
+  try {
+    const isUser = !!userId;
+    const now = new Date();
+    // Default reset is next day
+    const nextReset = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    if (isUser) {
+      const { data } = await supabase.from('user_usage').select('id, prompt_count, reset_at').eq('user_id', userId).maybeSingle();
+      if (!data) {
+        await supabase.from('user_usage').insert({ user_id: userId, prompt_count: 1, reset_at: nextReset.toISOString() });
+      } else {
+        if (now.getTime() > new Date(data.reset_at).getTime()) {
+          await supabase.from('user_usage').update({ prompt_count: 1, reset_at: nextReset.toISOString() }).eq('id', data.id);
+        } else {
+          await supabase.from('user_usage').update({ prompt_count: data.prompt_count + 1 }).eq('id', data.id);
+        }
+      }
+    } else {
+      if (!sessionId) return;
+      const { data } = await supabase.from('user_usage').select('id, prompt_count, reset_at').eq('session_id', sessionId).maybeSingle();
+      if (!data) {
+        await supabase.from('user_usage').insert({ session_id: sessionId, prompt_count: 1, reset_at: nextReset.toISOString() });
+      } else {
+        if (now.getTime() > new Date(data.reset_at).getTime()) {
+          await supabase.from('user_usage').update({ prompt_count: 1, reset_at: nextReset.toISOString() }).eq('id', data.id);
+        } else {
+          await supabase.from('user_usage').update({ prompt_count: data.prompt_count + 1 }).eq('id', data.id);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error('Failed to increment quota:', err);
+  }
+}
+
 // --- Validation Schemas ---
 
 /**
@@ -214,6 +251,7 @@ export const chatController = async (c: Context) => {
     ];
     
     await saveChatHistory(sessionId, updatedHistory, userId);
+    await incrementQuota(userId, sessionId);
 
     return c.json({
       content: response,
@@ -427,6 +465,7 @@ export const chatStreamController = async (c: Context) => {
         ];
         
         await saveChatHistory(sessionId, updatedHistory, userId);
+        await incrementQuota(userId, sessionId);
 
         await stream.writeSSE({
           data: JSON.stringify({
