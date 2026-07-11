@@ -1,44 +1,42 @@
-# 🏛️ KOMUNITAS API Documentation (v1.0.0)
+# Dokumentasi API KOMUNITAS (v1.0.0)
 
-Dokumentasi API resmi untuk sistem **KOMUNITAS** (Layanan Pengaduan Warga Cerdas & Portal Informasi Faktual).  
-*Official API documentation for the **KOMUNITAS** system (Smart Citizen Complaint & Fact-Checking Portal).*
+Dokumentasi API resmi untuk sistem **KOMUNITAS** (Layanan Pengaduan Warga Cerdas & Portal Informasi Faktual).
 
 ---
 
-## 🔒 Authentication & Security
+## Keamanan dan Autentikasi (Authentication & Security)
 
-API ini dilindungi menggunakan token JWT (JSON Web Token) yang disediakan oleh **Supabase Auth**.  
-*This API is secured using JWT (JSON Web Token) provided by **Supabase Auth**.*
+API ini dilindungi menggunakan token JWT (JSON Web Token) yang disediakan oleh **Supabase Auth**.
 
-- Semua *endpoint* yang bertanda **[Auth Required]** harus menyertakan token di header `Authorization` dengan skema `Bearer`.
+- Semua endpoint yang membutuhkan autentikasi wajib menyertakan token di header `Authorization` dengan skema `Bearer`.
 - Token diperoleh dari endpoint `/api/auth/login`.
 
 ```http
 Authorization: Bearer <your_jwt_token>
 ```
 
-### Roles & Permissions:
-1. `user` (Warga Terdaftar) - Dapat mengirim laporan aduan dan berinteraksi di ruang chat aduan miliknya.
-2. `petugas` (Staff Pelayanan) - Dapat melihat laporan, mengupdate status, dan merespons chat aduan warga.
-3. `admin` - Memiliki kontrol atas laporan, petugas, hoax keywords, dan statistik regional.
-4. `superadmin` - Akses penuh ke seluruh fitur sistem dan manajemen staf tingkat tinggi.
+### Peran dan Hak Akses (Roles & Permissions):
+1. `user` (Warga Terdaftar) - Mengirim laporan aduan dan berinteraksi di ruang chat aduan miliknya.
+2. `petugas` (Staf Pelayanan) - Memantau laporan aduan warga, memperbarui status aduan, dan merespons chat.
+3. `admin` - Mengelola keluhan warga, akun petugas, statistik regional, dan kategori layanan.
+4. `superadmin` - Memiliki kontrol penuh atas seluruh sistem dan registrasi staf admin/petugas baru.
 
 ---
 
-## ⏱️ Rate Limiting & Quota limits
+## Batasan Penggunaan dan Kuota (Rate Limiting & Quota Limits)
 
-Sistem mengimplementasikan limitasi request berbasis IP Address (sliding window in-memory limiter):
-- **Auth Routes (`/api/auth/*`)**: Maksimal 15 request per menit per IP.
-- **Chat & AI Routes (`/api/chat/*`)**: Maksimal 60 request per menit per IP.
+Sistem mengimplementasikan limitasi request berbasis IP Address:
+- **Auth Routes (`/api/auth/*`)**: Maksimal 15 request per menit per alamat IP.
+- **Chat & AI Routes (`/api/chat/*`)**: Maksimal 60 request per menit per alamat IP.
 
-### AI Usage Quota:
-- **Guest / Warga Tanpa Akun**: Maksimal 7 prompt per hari per sesi.
-- **Warga Terdaftar**: Maksimal 20 prompt per hari per akun.
-- Batas pelaporan bagi Guest: Maksimal 2 laporan per hari berdasarkan nomor kontak.
+### Kuota Penggunaan Fitur AI:
+- **Guest / Warga Tanpa Akun**: Maksimal 7 prompt konsultasi per 24 jam per sesi.
+- **Warga Terdaftar**: Maksimal 20 prompt konsultasi per 24 jam per akun.
+- **Batas Aduan Guest**: Maksimal 2 pengaduan laporan per 24 jam berdasarkan nomor kontak pengirim.
 
 ---
 
-## ❌ Global Error Codes
+## Kode Kesalahan Global (Global Error Codes)
 
 Semua respons error menggunakan format JSON standar berikut:
 ```json
@@ -59,9 +57,9 @@ Semua respons error menggunakan format JSON standar berikut:
 
 ---
 
-## 🔑 1. Authentication Endpoints (`/api/auth`)
+## 1. Endpoint Autentikasi (Authentication Endpoints) (`/api/auth`)
 
-### 🚪 POST `/api/auth/register`
+### POST `/api/auth/register`
 Mendaftarkan akun warga baru.  
 *Register a new citizen account.*
 
@@ -93,7 +91,7 @@ Mendaftarkan akun warga baru.
   }
   ```
 
-### 🔑 POST `/api/auth/login`
+### POST `/api/auth/login`
 Autentikasi akun dan mendapatkan JWT token.  
 *Authenticate account and get JWT.*
 
@@ -125,7 +123,7 @@ Autentikasi akun dan mendapatkan JWT token.
   }
   ```
 
-### 👤 GET `/api/auth/me`
+### GET `/api/auth/me`
 Mendapatkan informasi profil pengguna yang sedang login.  
 *Get current logged-in user profile.*
 
@@ -148,9 +146,9 @@ Mendapatkan informasi profil pengguna yang sedang login.
 
 ---
 
-## 🤖 2. Chat & AI Endpoints (`/api/chat`)
+## 2. Endpoint Layanan Chat & AI (Chat & AI Endpoints) (`/api/chat`)
 
-### 💬 POST `/api/chat`
+### POST `/api/chat`
 Kirim pesan chat asisten AI (mendukung RAG/Pencarian Layanan Publik).  
 *Send message to AI assistant (RAG-enabled).*
 
@@ -170,7 +168,7 @@ Kirim pesan chat asisten AI (mendukung RAG/Pencarian Layanan Publik).
   }
   ```
 
-### 📡 POST `/api/chat/stream`
+### POST `/api/chat/stream`
 Kirim pesan chat dengan respon streaming Server-Sent Events (SSE).  
 *Send message with SSE streaming response.*
 
@@ -186,7 +184,7 @@ Kirim pesan chat dengan respon streaming Server-Sent Events (SSE).
   ```
 * **Response**: Stream of events (`text`, `search_progress`, `done`, `error`)
 
-### 🔍 POST `/api/chat/validate`
+### POST `/api/chat/validate`
 Verifikasi validitas klaim informasi / berita hoax (Web Search Grounding).  
 *Verify validity of news/hoax claim.*
 
@@ -210,7 +208,7 @@ Verifikasi validitas klaim informasi / berita hoax (Web Search Grounding).
   }
   ```
 
-### 📄 POST `/api/chat/summarize`
+### POST `/api/chat/summarize`
 Meringkas dokumen birokrasi dan menghasilkan visualisasi bagan alur proses (Mermaid.js).  
 *Summarize bureaucrat document and generate flowcharts.*
 
@@ -229,7 +227,7 @@ Meringkas dokumen birokrasi dan menghasilkan visualisasi bagan alur proses (Merm
   }
   ```
 
-### 📂 POST `/api/chat/extract-file`
+### POST `/api/chat/extract-file`
 Mengekstrak teks mentah dari file dokumen (PDF, DOCX, XLSX, TXT, MD).  
 *Extract raw text from document files.*
 
@@ -246,7 +244,7 @@ Mengekstrak teks mentah dari file dokumen (PDF, DOCX, XLSX, TXT, MD).
   }
   ```
 
-### 📊 GET `/api/chat/quota`
+### GET `/api/chat/quota`
 Mengecek sisa kuota prompt harian pengguna.  
 *Check daily prompt quota.*
 
@@ -264,9 +262,9 @@ Mengecek sisa kuota prompt harian pengguna.
 
 ---
 
-## 📋 3. Citizen Report Endpoints (`/api/reports`)
+## 3. Endpoint Pengaduan Warga (Citizen Report Endpoints) (`/api/reports`)
 
-### ✍️ POST `/api/reports`
+### POST `/api/reports`
 Membuat laporan aduan warga baru.  
 *Create a new citizen report.*
 
@@ -302,7 +300,7 @@ Membuat laporan aduan warga baru.
   }
   ```
 
-### 🔍 GET `/api/reports`
+### GET `/api/reports`
 Mengambil seluruh daftar laporan (mendukung filter spasial & paginasi).  
 *Fetch all reports with filters and pagination.*
 
@@ -336,7 +334,7 @@ Mengambil seluruh daftar laporan (mendukung filter spasial & paginasi).
   }
   ```
 
-### ✏️ PATCH `/api/reports/:id`
+### PATCH `/api/reports/:id`
 Memperbarui status laporan dan memberikan catatan pelayanan.  
 *Update report status and admin notes.*
 
@@ -363,9 +361,9 @@ Memperbarui status laporan dan memberikan catatan pelayanan.
 
 ---
 
-## 👥 4. Admin & Staff Management Endpoints (`/api/admin`)
+## 4. Endpoint Manajemen Admin & Staf (Admin & Staff Management Endpoints) (`/api/admin`)
 
-### 📈 GET `/api/admin/stats`
+### GET `/api/admin/stats`
 Mengambil data statistik agregat dashboard admin (regional, kategori, status).  
 *Get aggregate stats for dashboard.*
 
@@ -389,7 +387,7 @@ Mengambil data statistik agregat dashboard admin (regional, kategori, status).
   }
   ```
 
-### 👤 POST `/api/admin/create-user`
+### POST `/api/admin/create-user`
 Membuat akun petugas pelayanan / admin baru.  
 *Create a new staff user profile.*
 
@@ -421,7 +419,7 @@ Membuat akun petugas pelayanan / admin baru.
 
 ---
 
-## 🔌 5. Real-Time Chat Protocol (WebSocket)
+## 5. Protokol Obrolan Real-Time (WebSocket)
 
 Komunikasi 2 arah secara real-time antara pelapor (warga) dan petugas pelayanan dilakukan melalui koneksi WebSocket.  
 *Real-time two-way communication between reporter and staff is handled via WebSocket.*
