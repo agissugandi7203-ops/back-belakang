@@ -142,10 +142,32 @@ export const reportSchema = z.object({
   latitude: z.number({ message: 'Koordinat lokasi GPS (latitude) wajib disertakan' }),
   longitude: z.number({ message: 'Koordinat lokasi GPS (longitude) wajib disertakan' }),
   image: z.string().optional(),
-  province: z.string().optional(),
-  city: z.string().optional(),
-  district: z.string().optional(),
 });
+
+// Classifier helper to determine if a message needs web search grounding (improves latency for conversational inputs)
+function shouldTriggerWebSearch(message: string): boolean {
+  const msg = message.trim().toLowerCase();
+  
+  // 1. Skip if message is very short (e.g. greetings, simple words)
+  if (msg.length < 10) return false;
+  
+  // 2. Blacklist: Simple conversational words and greetings
+  const conversationalRegex = /^(halo|hai|hey|p|test|tes|pagi|siang|sore|malam|apa kabar|assalamualaikum|permisi|terima kasih|makasih|thank you|thanks|siapa kamu|siapa nama anda|siapa anda|bot|asisten|bagaimana kabarmu|kamu siapa)$/;
+  if (conversationalRegex.test(msg)) return false;
+  
+  // 3. Whitelist: Factual, verification, news, or informational keywords that require search
+  const searchKeywords = [
+    'hoax', 'hoaks', 'fitnah', 'berita', 'kabar', 'info', 'informasi', 'terbaru', 'viral', 
+    'apakah benar', 'benarkah', 'cek fakta', 'fakta atau', 'rumor', 'isunya', 'isu',
+    'kejadian', 'peristiwa', 'siapa', 'kapan', 'di mana', 'dimana', 'bagaimana', 'mengapa', 
+    'kenapa', 'syarat', 'cara membuat', 'cara mengurus', 'regulasi', 'aturan', 'uu', 
+    'undang-undang', 'pasal', 'biaya', 'daftar', 'pendaftaran', 'bansos', 'bantuan', 
+    'ktp', 'kk', 'sim', 'bpjs', 'sertifikat', 'paspor', 'ijazah', 'dinas', 'pemerintah', 'presiden'
+  ];
+  
+  const hasKeyword = searchKeywords.some(keyword => msg.includes(keyword));
+  return hasKeyword;
+}
 
 // --- Controllers ---
 
@@ -371,7 +393,7 @@ export const chatStreamController = async (c: Context) => {
 
       // --- MULTI-PHASE SEARCH PIPELINE ---
       let searchResults: SearchResultItem[] = [];
-      if (validated.message) {
+      if (validated.message && shouldTriggerWebSearch(validated.message)) {
         try {
           searchResults = await searchMultiPhase(validated.message, async (progress) => {
             await stream.writeSSE({
@@ -394,6 +416,8 @@ export const chatStreamController = async (c: Context) => {
         } catch (searchErr) {
           logger.error('❌ Search multi-phase failed:', searchErr);
         }
+      } else {
+        logger.info(`⚡ Skipping web search grounding for query: "${validated.message}" (Latency priority)`);
       }
 
       let searchContext = '';

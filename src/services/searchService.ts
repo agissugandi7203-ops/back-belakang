@@ -203,8 +203,8 @@ export const searchMultiPhase = async (
     if (onProgress) {
       onProgress({
         phase: 2,
-        count: phase1Sites.length + phase2Sites.length,
-        sites: [...phase1Sites, ...phase2Sites],
+        count: 40,
+        sites: [...phase1Sites, ...phase2Sites].slice(0, 40),
       });
     }
 
