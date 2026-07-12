@@ -142,6 +142,9 @@ export const reportSchema = z.object({
   latitude: z.number({ message: 'Koordinat lokasi GPS (latitude) wajib disertakan' }),
   longitude: z.number({ message: 'Koordinat lokasi GPS (longitude) wajib disertakan' }),
   image: z.string().optional(),
+  province: z.string().optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
 });
 
 // Classifier helper to determine if a message needs web search grounding (improves latency for conversational inputs)
@@ -762,8 +765,9 @@ export const getReportsController = async (c: Context) => {
     const page = parseInt(c.req.query('page') || '1');
     const limit = parseInt(c.req.query('limit') || '20');
     const offset = (page - 1) * limit;
+    const onlyMine = c.req.query('only_mine') === 'true';
 
-    logger.info('📋 Get reports request:', { email: user?.email, role: profile?.role, contact, status, province, city, district });
+    logger.info('📋 Get reports request:', { email: user?.email, role: profile?.role, contact, status, province, city, district, onlyMine });
 
     const supabaseClient = c.get('supabase') || supabase;
     let query = supabaseClient
@@ -774,8 +778,8 @@ export const getReportsController = async (c: Context) => {
 
     // Apply role-based and contact filtering
     if (profile) {
-      if (profile.role === 'user') {
-        // Regular citizen: only see their own reports (by user_id OR contact match)
+      if (profile.role === 'user' || onlyMine) {
+        // Regular citizen or forced only_mine: only see their own reports (by user_id OR contact match)
         const clauses = [`user_id.eq.${profile.id}`];
         if (profile.email) clauses.push(`reporter_contact.eq.${profile.email}`);
         if (profile.nomor_telepon) clauses.push(`reporter_contact.eq.${profile.nomor_telepon}`);
