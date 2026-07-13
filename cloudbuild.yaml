@@ -1,43 +1,19 @@
 steps:
-  # 1. Build the container image using Dockerfile
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/backbelakang:$COMMIT_SHA'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/backbelakang:latest'
-      - '.'
-
-  # 2. Push the container image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/backbelakang:$COMMIT_SHA'
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/backbelakang:latest'
-
-  # 3. Deploy the container image to Cloud Run service
+  # Build and Deploy backend directly to Cloud Run using --source option
+  # This avoids manual docker push to deprecated gcr.io and auto-creates Artifact Registry repositories
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
       - 'run'
       - 'deploy'
       - 'backbelakang'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/backbelakang:$COMMIT_SHA'
+      - '--source'
+      - '.'
       - '--region'
       - 'asia-southeast1'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-
-images:
-  - 'gcr.io/$PROJECT_ID/backbelakang:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/backbelakang:latest'
 
 options:
   logging: CLOUD_LOGGING_ONLY
