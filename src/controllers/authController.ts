@@ -467,6 +467,66 @@ export const getStaffUsersController = async (c: Context) => {
   }
 };
 
+
+/**
+ * Delete Staff User Controller (Superadmin only)
+ * DELETE /api/admin/staff/:id
+ */
+export const deleteStaffUserController = async (c: Context) => {
+  try {
+    const id = c.req.param('id');
+    const currentUser = c.get('user');
+    
+    if (!id) {
+      return c.json({ success: false, error: 'Bad Request', message: 'ID staf wajib disertakan' }, 400);
+    }
+    
+    logger.info(`👥 Admin: Superadmin ${currentUser?.email} requests deletion of user ID: ${id}`);
+    
+    // 1. Dapatkan profil target untuk memvalidasi rolenya
+    const { data: targetProfile, error: getError } = await supabaseAdmin
+      .from('profiles')
+      .select('role, email')
+      .eq('id', id)
+      .single();
+      
+    if (getError || !targetProfile) {
+      return c.json({ success: false, error: 'User tidak ditemukan', message: 'Profil staf tidak ditemukan' }, 404);
+    }
+    
+    // 2. Cegah penghapusan sesama superadmin
+    if (targetProfile.role === 'superadmin') {
+      return c.json({ success: false, error: 'Forbidden', message: 'Akun Superadmin tidak dapat dihapus untuk keamanan sistem' }, 403);
+    }
+    
+    // 3. Hapus profil dari tabel 'profiles'
+    const { error: profileDelError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+      
+    if (profileDelError) {
+      throw profileDelError;
+    }
+    
+    // 4. Hapus user dari Supabase Auth secara permanen menggunakan Admin API
+    const { error: authDelError } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (authDelError) {
+      logger.warn(`⚠️ Deleted profile for ${targetProfile.email} but failed to delete auth user from Supabase:`, authDelError.message);
+    }
+    
+    logger.info(`✅ User ${targetProfile.email} successfully deleted by superadmin`);
+    return c.json({
+      success: true,
+      message: 'Akun staf berhasil dihapus secara permanen'
+    });
+  } catch (error: any) {
+    logger.error('❌ Delete staff user error:', error);
+    return c.json({ error: 'Gagal menghapus akun staf', message: error.message }, 500);
+  }
+};
+
+
 const updateProfileSchema = z.object({
   nama_panggilan: z.string().min(1, 'Nama panggilan tidak boleh kosong').optional(),
   nomor_telepon: z.string().regex(/^\+62\d{10,13}$/, 'Format nomor telepon harus diawali dengan +62 dan diikuti 10-13 digit angka').optional(),

@@ -33,7 +33,7 @@ import {
   deleteRAGDocumentController,
 } from './controllers/chatController';
 import { authMiddleware, requireRoles, optionalAuthMiddleware } from './utils/authMiddleware';
-import { createStaffUserController, getStaffUsersController } from './controllers/authController';
+import { createStaffUserController, getStaffUsersController, deleteStaffUserController } from './controllers/authController';
 import {
   whatsappWebhookController,
   getHoaxesController,
@@ -289,6 +289,13 @@ app.get(
   authMiddleware,
   requireRoles(['superadmin', 'admin']),
   getStaffUsersController
+);
+
+app.delete(
+  '/api/admin/staff/:id',
+  authMiddleware,
+  requireRoles(['superadmin']),
+  deleteStaffUserController
 );
 
 // --- WhatsApp Hoax Bot Keyword CRUD (Protected) ---
